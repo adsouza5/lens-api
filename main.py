@@ -8,32 +8,44 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 import chunker
 import store
-from embeddings import build_provider
+from embeddings import build_provider, LocalProvider
 
 app = FastAPI(title="Lens API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 
 BATCH_SIZE = 32
 
 
+@app.on_event("startup")
+async def warm_model():
+    loop = asyncio.get_event_loop()
+    def _load():
+        from sentence_transformers import SentenceTransformer
+        if LocalProvider._model is None:
+            LocalProvider._model = SentenceTransformer(
+                "jinaai/jina-embeddings-v2-base-code", trust_remote_code=True
+            )
+    await loop.run_in_executor(None, _load)
+
+
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class IndexRequest(BaseModel):
-    repo_url:    str
-    provider:    str = "local"       # "openai" | "local" | "ollama"
-    api_key:     str | None = None
-    ollama_url:  str | None = None
+    repo_url:   str
+    provider:   str = "local"
+    api_key:    str | None = None
+    ollama_url: str | None = None
 
 class SearchRequest(BaseModel):
     query:      str
@@ -59,6 +71,15 @@ async def get_collections():
     client = store.get_client()
     cols = await store.list_collections(client)
     return {"collections": cols}
+
+
+@app.delete("/collections/{name}")
+async def delete_collection(name: str):
+    if not name.startswith("lens-"):
+        raise HTTPException(status_code=400, detail="Can only delete lens-* collections")
+    client = store.get_client()
+    await client.delete_collection(name)
+    return {"deleted": name}
 
 
 # ── Index ─────────────────────────────────────────────────────────────────────
@@ -108,6 +129,11 @@ async def index_repo(req: IndexRequest):
 
             collection = store.repo_collection(req.repo_url)
             client = store.get_client()
+
+            # Drop and recreate so re-indexing is always clean
+            existing = {c.name for c in (await client.get_collections()).collections}
+            if collection in existing:
+                await client.delete_collection(collection)
             await store.ensure_collection(client, collection, provider.dimensions)
 
             all_chunks: list[chunker.Chunk] = []
@@ -156,6 +182,7 @@ async def index_repo(req: IndexRequest):
                 "type": "done",
                 "message": f"Indexed {total_chunks} chunks from {total_files} files",
                 "collection": collection,
+                "repo_url": req.repo_url,
                 "chunks": total_chunks,
                 "files": total_files,
                 "provider": provider.name,

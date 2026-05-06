@@ -44,6 +44,7 @@ jobs:
             --memory 2Gi \
             --cpu 2 \
             --timeout 300 \
+            --min-instances 1 \
             --set-env-vars "QDRANT_URL=${{ secrets.QDRANT_URL }},QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}"
 
       - name: Tag latest
