@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -26,11 +25,14 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Build and push image
-        run: |
-          gcloud builds submit \
-            --tag $IMAGE:${{ github.sha }} \
-            --timeout=20m
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker gcr.io --quiet
+
+      - name: Build image
+        run: docker build -t $IMAGE:${{ github.sha }} .
+
+      - name: Push image
+        run: docker push $IMAGE:${{ github.sha }}
 
       - name: Deploy to Cloud Run
         run: |
@@ -45,4 +47,4 @@ jobs:
             --set-env-vars "QDRANT_URL=${{ secrets.QDRANT_URL }},QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}"
 
       - name: Tag latest
-        run: gcloud container images add-tag $IMAGE:${{ github.sha }} $IMAGE:latest
+        run: gcloud container images add-tag $IMAGE:${{ github.sha }} $IMAGE:latest --quiet
