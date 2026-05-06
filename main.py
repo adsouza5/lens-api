@@ -166,7 +166,11 @@ async def index_repo(req: IndexRequest):
                     yield {"data": event({"type": "error", "message": f"Embedding failed: {e}"})}
                     return
 
-                await store.upsert_chunks(client, collection, batch, vecs, offset=point_offset)
+                try:
+                    await store.upsert_chunks(client, collection, batch, vecs, offset=point_offset)
+                except Exception as e:
+                    yield {"data": event({"type": "error", "message": f"Qdrant upsert failed: {e}"})}
+                    return
                 point_offset += len(batch)
 
                 done = min(batch_start + BATCH_SIZE, total_chunks)
