@@ -48,13 +48,18 @@ class LocalProvider:
         return 768
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        from sentence_transformers import SentenceTransformer
         import asyncio
-        if LocalProvider._model is None:
-            LocalProvider._model = SentenceTransformer(self._model_name, trust_remote_code=True)
         loop = asyncio.get_event_loop()
-        vecs = await loop.run_in_executor(None, lambda: LocalProvider._model.encode(texts).tolist())
-        return vecs
+
+        def _encode():
+            if LocalProvider._model is None:
+                from sentence_transformers import SentenceTransformer
+                LocalProvider._model = SentenceTransformer(
+                    self._model_name, trust_remote_code=True, local_files_only=True
+                )
+            return LocalProvider._model.encode(texts).tolist()
+
+        return await loop.run_in_executor(None, _encode)
 
 
 class OllamaProvider:
