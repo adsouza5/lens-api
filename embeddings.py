@@ -35,17 +35,18 @@ class OpenAIProvider:
 
 class LocalProvider:
     _model = None
+    MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
-    def __init__(self, model_name: str = "jinaai/jina-embeddings-v2-base-code"):
-        self._model_name = model_name
+    def __init__(self):
+        pass
 
     @property
     def name(self) -> str:
-        return f"local/{self._model_name.split('/')[-1]}"
+        return "local/all-MiniLM-L6-v2"
 
     @property
     def dimensions(self) -> int:
-        return 768
+        return 384
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         import asyncio
@@ -54,10 +55,8 @@ class LocalProvider:
         def _encode():
             if LocalProvider._model is None:
                 from sentence_transformers import SentenceTransformer
-                LocalProvider._model = SentenceTransformer(
-                    self._model_name, trust_remote_code=True, local_files_only=True
-                )
-            return LocalProvider._model.encode(texts).tolist()
+                LocalProvider._model = SentenceTransformer(LocalProvider.MODEL_NAME)
+            return LocalProvider._model.encode(texts, show_progress_bar=False).tolist()
 
         return await loop.run_in_executor(None, _encode)
 

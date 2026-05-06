@@ -33,11 +33,7 @@ async def warm_model():
     def _load():
         from sentence_transformers import SentenceTransformer
         if LocalProvider._model is None:
-            LocalProvider._model = SentenceTransformer(
-                "jinaai/jina-embeddings-v2-base-code",
-                trust_remote_code=True,
-                local_files_only=True,
-            )
+            LocalProvider._model = SentenceTransformer(LocalProvider.MODEL_NAME)
     await loop.run_in_executor(None, _load)
 
 
