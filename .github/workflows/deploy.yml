@@ -8,7 +8,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: us-central1
   SERVICE: lens-api
-  IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/lens-api
+  IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/lens-api/lens-api
 
 jobs:
   deploy:
@@ -25,8 +25,8 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker gcr.io --quiet
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Build image
         run: docker build -t $IMAGE:${{ github.sha }} .
@@ -47,4 +47,8 @@ jobs:
             --set-env-vars "QDRANT_URL=${{ secrets.QDRANT_URL }},QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}"
 
       - name: Tag latest
-        run: gcloud container images add-tag $IMAGE:${{ github.sha }} $IMAGE:latest --quiet
+        run: |
+          gcloud artifacts docker tags add \
+            $IMAGE:${{ github.sha }} \
+            $IMAGE:latest \
+            --quiet
