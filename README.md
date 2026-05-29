@@ -2,7 +2,7 @@
 
 Index any Git repository and search it with natural language. Lens parses source files with tree-sitter (AST-aware chunking), embeds them with OpenAI or local sentence-transformers, stores vectors in Qdrant, and returns semantically similar code chunks ranked by relevance.
 
-**[Live Demo](https://adsouza5.github.io/portfolio-react/projects/lens)**
+**[Live Demo](https://www.iadamdsouza.com/projects/lens)**
 
 ## How It Works
 
