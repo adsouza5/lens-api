@@ -1,80 +1,58 @@
 # Lens — Semantic Code Search Engine
 
-Index any Git repository and search it with natural language. Lens parses source files with tree-sitter (AST-aware chunking), embeds them with OpenAI or local sentence-transformers, stores vectors in Qdrant, and returns semantically similar code chunks ranked by relevance.
+> Index any GitHub repository and query it in plain English. Sub-second vector similarity search across functions and classes.
 
-**[Live Demo](https://www.iadamdsouza.com/projects/lens)**
+## Overview
 
-## How It Works
+Lens clones a GitHub repository, chunks the source code at the **function and class level** using **tree-sitter**, embeds each chunk with your choice of embedding model, and stores the vectors in **Qdrant**. Natural-language queries are embedded at search time and ranked by cosine similarity — results include file path, line numbers, symbol name, and relevance score.
 
-```
-GitHub Repo URL
-      │
-      ▼
-  Git clone  ──▶  tree-sitter parse  ──▶  AST-aware chunks
-                                                │
-                                     Embedding model (OpenAI / local)
-                                                │
-                                          Qdrant collection
-                                                │
-                               Query ──▶  embed query ──▶  vector search
-                                                │
-                                      Ranked code results
-```
+Three embedding back-ends are supported: a self-hosted **jina-embeddings-v2-base-code** model, **OpenAI text-embedding-3-small**, or a fully local **Ollama** model.
 
 ## Features
 
-- **AST-aware chunking** — tree-sitter splits files at function/class boundaries, not arbitrary line counts
-- **Multi-language** — Python, JavaScript, TypeScript, Go, Rust, Java
-- **Flexible embeddings** — OpenAI `text-embedding-3-small`, local Sentence Transformers, or Ollama
-- **Streaming indexing** — Server-Sent Events stream progress in real time while the repo is being indexed
-- **Collection management** — list, search across, and delete indexed repos
+- **Semantic search** — find code by intent, not just keywords
+- **tree-sitter chunking** — function/class-level granularity, not line-by-line
+- **Three embedding models** — jina (self-hosted), OpenAI, Ollama (local)
+- **Qdrant vector store** — sub-second approximate nearest-neighbour search
+- **FastAPI** — REST indexing and search endpoints with OpenAPI docs
+- **React UI** — model selector, live indexing progress, result cards with file path, line numbers, score, and code preview
+- **Cloud Run deployment** — containerised, auto-scaling
 
-## Tech Stack
+## Stack
 
 | Layer | Technology |
 |---|---|
-| API | FastAPI, Python |
-| Parsing | tree-sitter (6 language grammars) |
+| Parser | tree-sitter (Python, JS, TS, Go, Rust, Java, C/C++) |
+| Embeddings | jina-embeddings-v2-base-code / OpenAI / Ollama |
 | Vector DB | Qdrant |
-| Embeddings | OpenAI API, sentence-transformers |
-| Streaming | Server-Sent Events (sse-starlette) |
+| API | FastAPI (Python) |
+| Frontend | React |
 | Deployment | Cloud Run, Docker |
 
-## Endpoints
+## Architecture
 
-| Method | Path | Description |
-|---|---|---|
-| POST | `/index` | Index a repo (SSE stream) |
-| POST | `/search` | Semantic search |
-| GET | `/collections` | List indexed repos |
-| DELETE | `/collections/{name}` | Remove a collection |
+```
+GitHub Repo URL
+      ↓
+   git clone
+      ↓
+tree-sitter chunker → [function/class chunks]
+      ↓
+embedding model (jina / OpenAI / Ollama)
+      ↓
+Qdrant (upsert vectors)
 
-## Local Development
-
-```bash
-git clone https://github.com/adsouza5/lens-api
-cd lens-api
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn main:app --reload
-# API on :8000
+Query (plain English)
+      ↓
+embedding model
+      ↓
+Qdrant ANN search → ranked results
 ```
 
-```bash
-# Index a repo
-curl -X POST http://localhost:8000/index \
-  -H "Content-Type: application/json" \
-  -d '{"repo_url": "https://github.com/user/repo", "provider": "openai", "api_key": "sk-..."}'
+## Live Demo
 
-# Search
-curl -X POST http://localhost:8000/search \
-  -H "Content-Type: application/json" \
-  -d '{"collection": "repo", "query": "authentication middleware", "top_k": 5}'
-```
+Available at [adamdsouza.com](https://adamdsouza.com) → Lens project card.
 
-## Deployment
+## License
 
-```bash
-gcloud builds submit --tag <IMAGE>
-gcloud run deploy lens-api --image <IMAGE> --allow-unauthenticated
-```
+MIT
